@@ -11,6 +11,8 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+import { apiFetch } from '../utils/api';
+
 // Custom marker icon for wildlife reserve sites
 const siteIcon = L.divIcon({
   html: `<div style="background:#059669; width:16px; height:16px; border-radius:50%; border:3px solid white; box-shadow:0 0 8px rgba(5,150,105,0.6);"></div>`,
@@ -28,29 +30,20 @@ export default function GISMap() {
 
   useEffect(() => {
     async function loadGISData() {
-      try {
-        const token = localStorage.getItem('token');
-        const headers = { 'Authorization': `Bearer ${token}` };
+      setLoading(true);
+      const [resSites, resObs] = await Promise.all([
+        apiFetch('/api/v1/gis/sites-geojson'),
+        apiFetch('/api/v1/gis/observations-heatmap')
+      ]);
 
-        const [resSites, resObs] = await Promise.all([
-          fetch('/api/v1/gis/sites-geojson', { headers }),
-          fetch('/api/v1/gis/observations-heatmap', { headers })
-        ]);
-
-        if (resSites.ok) {
-          const data = await resSites.json();
-          setSitesGeo(data.features || []);
-        }
-
-        if (resObs.ok) {
-          const data = await resObs.json();
-          setObservationsHeatmap(data.features || []);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+      if (resSites.ok && resSites.data) {
+        setSitesGeo(resSites.data.features || []);
       }
+
+      if (resObs.ok && resObs.data) {
+        setObservationsHeatmap(resObs.data.features || []);
+      }
+      setLoading(false);
     }
     loadGISData();
   }, []);

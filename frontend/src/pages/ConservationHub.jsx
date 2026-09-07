@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldAlert, AlertCircle, CheckCircle, Lightbulb, Plus, Filter } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 export default function ConservationHub() {
   const [alerts, setAlerts] = useState([]);
@@ -12,47 +13,35 @@ export default function ConservationHub() {
 
   useEffect(() => {
     async function loadSites() {
-      try {
-        const token = localStorage.getItem('token');
-        const headers = { 'Authorization': `Bearer ${token}` };
-        const res = await fetch('/api/v1/monitoring-sites', { headers });
-        if (res.ok) setSites(await res.json());
-      } catch (err) { console.error(err); }
+      const res = await apiFetch('/api/v1/monitoring-sites');
+      if (res.ok && Array.isArray(res.data)) setSites(res.data);
     }
     loadSites();
   }, []);
 
   const loadData = async () => {
     setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const headers = { 'Authorization': `Bearer ${token}` };
-      const siteParam = siteId ? `?site_id=${siteId}` : '';
+    const siteParam = siteId ? `?site_id=${siteId}` : '';
 
-      const [resAlerts, resRecs, resActions] = await Promise.all([
-        fetch(`/api/v1/conservation/alerts${siteParam}`, { headers }),
-        fetch(`/api/v1/conservation/recommendations${siteParam}`, { headers }),
-        fetch(`/api/v1/conservation/actions${siteParam}`, { headers })
-      ]);
+    const [resAlerts, resRecs, resActions] = await Promise.all([
+      apiFetch(`/api/v1/conservation/alerts${siteParam}`),
+      apiFetch(`/api/v1/conservation/recommendations${siteParam}`),
+      apiFetch(`/api/v1/conservation/actions${siteParam}`)
+    ]);
 
-      if (resAlerts.ok) setAlerts(await resAlerts.json());
-      if (resRecs.ok) setRecommendations(await resRecs.json());
-      if (resActions.ok) setActions(await resActions.json());
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    if (resAlerts.ok && Array.isArray(resAlerts.data)) setAlerts(resAlerts.data);
+    if (resRecs.ok && Array.isArray(resRecs.data)) setRecommendations(resRecs.data);
+    if (resActions.ok && Array.isArray(resActions.data)) setActions(resActions.data);
+    setLoading(false);
   };
 
   useEffect(() => { loadData(); }, [siteId]);
 
   const resolveAlert = async (id) => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/v1/conservation/alerts/${id}`, {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) loadData();
-    } catch (err) { console.error(err); }
+    const res = await apiFetch(`/api/v1/conservation/alerts/${id}`, {
+      method: 'PUT'
+    });
+    if (res.ok) loadData();
   };
 
   const severityColor = (s) => {

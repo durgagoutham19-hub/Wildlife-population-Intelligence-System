@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, HelpCircle, Activity, Save, Trees, Droplet, Users } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 export default function HabitatIntelligence() {
   const [siteId, setSiteId] = useState('');
@@ -16,17 +17,10 @@ export default function HabitatIntelligence() {
 
   useEffect(() => {
     async function loadSites() {
-      try {
-        const token = localStorage.getItem('token');
-        const headers = { 'Authorization': `Bearer ${token}` };
-        const res = await fetch('/api/v1/monitoring-sites', { headers });
-        if (res.ok) {
-          const data = await res.json();
-          setSites(data);
-          if (data.length > 0) setSiteId(data[0].id);
-        }
-      } catch (err) {
-        console.error(err);
+      const res = await apiFetch('/api/v1/monitoring-sites');
+      if (res.ok && Array.isArray(res.data)) {
+        setSites(res.data);
+        if (res.data.length > 0) setSiteId(res.data[0].id);
       }
     }
     loadSites();
@@ -35,24 +29,14 @@ export default function HabitatIntelligence() {
   const loadHabitat = async () => {
     if (!siteId) return;
     setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/v1/habitat/assessment?site_id=${siteId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setHabData(data);
-        // Pre-fill sliders
-        setVegVal(data.vegetation_score || 80);
-        setWaterVal(data.water_source_score || 75);
-        setHumanVal(data.human_disturbance_score || 15);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+    const res = await apiFetch(`/api/v1/habitat/assessment?site_id=${siteId}`);
+    if (res.ok && res.data) {
+      setHabData(res.data);
+      setVegVal(res.data.vegetation_score || 80);
+      setWaterVal(res.data.water_source_score || 75);
+      setHumanVal(res.data.human_disturbance_score || 15);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -62,34 +46,24 @@ export default function HabitatIntelligence() {
   const handleSubmitAssessment = async (e) => {
     e.preventDefault();
     setSubmitting(true);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/v1/habitat/assessment', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          site_id: parseInt(siteId),
-          vegetation_quality: parseFloat(vegVal),
-          water_availability: parseFloat(waterVal),
-          human_disturbance: parseFloat(humanVal),
-          canopy_cover_pct: parseFloat(canopyVal)
-        })
-      });
+    const res = await apiFetch('/api/v1/habitat/assessment', {
+      method: 'POST',
+      body: JSON.stringify({
+        site_id: parseInt(siteId),
+        vegetation_quality: parseFloat(vegVal),
+        water_availability: parseFloat(waterVal),
+        human_disturbance: parseFloat(humanVal),
+        canopy_cover_pct: parseFloat(canopyVal)
+      })
+    });
 
-      if (res.ok) {
-        alert('Habitat health assessment saved successfully!');
-        loadHabitat();
-      } else {
-        alert('Failed to save assessment');
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSubmitting(false);
+    if (res.ok) {
+      alert('Habitat health assessment saved successfully!');
+      loadHabitat();
+    } else {
+      alert(res.error || 'Failed to save assessment');
     }
+    setSubmitting(false);
   };
 
   return (

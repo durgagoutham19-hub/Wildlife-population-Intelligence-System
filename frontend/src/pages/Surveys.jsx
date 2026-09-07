@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Calendar, Clock, CloudSun, FileText, Layers, CheckCircle2, Search, X, Sparkles, MapPin } from 'lucide-react';
 
+import { apiFetch } from '../utils/api';
+
 const SURVEY_STAGES = [
   { id: 'stage_1', label: 'Stage 1: Planning', color: 'bg-slate-100 text-slate-700 border-slate-200' },
   { id: 'stage_2', label: 'Stage 2: Active Field Deployment', color: 'bg-blue-100 text-blue-700 border-blue-200' },
@@ -35,29 +37,20 @@ export default function Surveys() {
   const [notes, setNotes] = useState('');
 
   const loadData = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const headers = { 'Authorization': `Bearer ${token}` };
+    setLoading(true);
+    const [resSites, resSurveys] = await Promise.all([
+      apiFetch('/api/v1/monitoring-sites'),
+      apiFetch('/api/v1/surveys')
+    ]);
 
-      // Load sites
-      const resSites = await fetch('/api/v1/monitoring-sites', { headers });
-      if (resSites.ok) {
-        const siteData = await resSites.json();
-        setSites(siteData);
-        if (siteData.length > 0 && !siteId) setSiteId(siteData[0].id);
-      }
-
-      // Load surveys
-      const resSurveys = await fetch('/api/v1/surveys', { headers });
-      if (resSurveys.ok) {
-        const surveyData = await resSurveys.json();
-        setSurveys(surveyData);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+    if (resSites.ok && Array.isArray(resSites.data)) {
+      setSites(resSites.data);
+      if (resSites.data.length > 0 && !siteId) setSiteId(resSites.data[0].id);
     }
+    if (resSurveys.ok && Array.isArray(resSurveys.data)) {
+      setSurveys(resSurveys.data);
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -66,39 +59,28 @@ export default function Surveys() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    try {
-      const token = localStorage.getItem('token');
-      const genId = surveyId.trim() || `SRV-${Date.now().toString().slice(-6)}`;
-      const res = await fetch('/api/v1/surveys', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          survey_id: genId,
-          survey_name: `${surveyName} [${surveyType}]`,
-          monitoring_site_id: parseInt(siteId),
-          survey_date: new Date(surveyDate).toISOString(),
-          survey_duration_hours: parseFloat(durationHours),
-          weather_conditions: `${weather} · ${surveyStage}`,
-          notes: `${notes} | Methodology: ${surveyType} | Stage: ${surveyStage}`
-        })
-      });
+    const genId = surveyId.trim() || `SRV-${Date.now().toString().slice(-6)}`;
+    const res = await apiFetch('/api/v1/surveys', {
+      method: 'POST',
+      body: JSON.stringify({
+        survey_id: genId,
+        survey_name: `${surveyName.trim()} [${surveyType}]`,
+        monitoring_site_id: parseInt(siteId),
+        survey_date: new Date(surveyDate).toISOString(),
+        survey_duration_hours: parseFloat(durationHours),
+        weather_conditions: `${weather} · ${surveyStage}`,
+        notes: `${notes.trim()} | Methodology: ${surveyType} | Stage: ${surveyStage}`
+      })
+    });
 
-      if (res.ok) {
-        setShowModal(false);
-        loadData();
-        // Reset form
-        setSurveyId('');
-        setSurveyName('');
-        setNotes('');
-      } else {
-        const errData = await res.json();
-        alert(errData.detail || 'Failed to create survey');
-      }
-    } catch (err) {
-      console.error(err);
+    if (res.ok) {
+      setShowModal(false);
+      loadData();
+      setSurveyId('');
+      setSurveyName('');
+      setNotes('');
+    } else {
+      alert(res.error || 'Failed to create survey');
     }
   };
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Sparkles, HelpCircle, Layers, PieChart, Calculator, Plus, Trash2, RefreshCw, BarChart2, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Doughnut, Bar } from 'react-chartjs-2';
+import { apiFetch } from '../utils/api';
 
 const DEFAULT_COMMUNITY = [
   { name: 'Bengal Tiger', count: 18, group: 'Carnivore' },
@@ -27,16 +28,9 @@ export default function BiodiversityIntelligence() {
 
   useEffect(() => {
     async function loadSites() {
-      try {
-        const token = localStorage.getItem('token');
-        const headers = { 'Authorization': `Bearer ${token}` };
-        const res = await fetch('/api/v1/monitoring-sites', { headers });
-        if (res.ok) {
-          const data = await res.json();
-          setSites(data);
-        }
-      } catch (err) {
-        console.error(err);
+      const res = await apiFetch('/api/v1/monitoring-sites');
+      if (res.ok && Array.isArray(res.data)) {
+        setSites(res.data);
       }
     }
     loadSites();
@@ -44,21 +38,12 @@ export default function BiodiversityIntelligence() {
 
   const loadBiodiversity = async () => {
     setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const url = siteId ? `/api/v1/biodiversity/metrics?site_id=${siteId}` : '/api/v1/biodiversity/metrics';
-      const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setBioData(data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+    const url = siteId ? `/api/v1/biodiversity/metrics?site_id=${siteId}` : '/api/v1/biodiversity/metrics';
+    const res = await apiFetch(url);
+    if (res.ok && res.data) {
+      setBioData(res.data);
     }
+    setLoading(false);
   };
 
   useEffect(() => {

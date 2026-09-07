@@ -11,6 +11,8 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 });
 
+import { apiFetch } from '../utils/api';
+
 // Map coordinate click handler
 function CoordinatePicker({ onLocationSelected }) {
   useMapEvents({
@@ -39,20 +41,12 @@ export default function MonitoringSites() {
   const [protectionStatus, setProtectionStatus] = useState('National Park');
 
   const fetchSites = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/v1/monitoring-sites', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setSites(data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+    setLoading(true);
+    const res = await apiFetch('/api/v1/monitoring-sites');
+    if (res.ok && Array.isArray(res.data)) {
+      setSites(res.data);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -61,41 +55,30 @@ export default function MonitoringSites() {
 
   const handleCreateSite = async (e) => {
     e.preventDefault();
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/v1/monitoring-sites', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          site_name: siteName,
-          site_code: siteCode,
-          description,
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude),
-          habitat_type: habitatType,
-          area_km2: parseFloat(areaKm2),
-          is_protected_area: isProtected,
-          protection_status: protectionStatus
-        })
-      });
+    const res = await apiFetch('/api/v1/monitoring-sites', {
+      method: 'POST',
+      body: JSON.stringify({
+        site_name: siteName.trim(),
+        site_code: siteCode.trim(),
+        description: description.trim(),
+        latitude: parseFloat(latitude),
+        longitude: parseFloat(longitude),
+        habitat_type: habitatType,
+        area_km2: parseFloat(areaKm2),
+        is_protected_area: isProtected,
+        protection_status: protectionStatus
+      })
+    });
 
-      if (res.ok) {
-        setSuccessMsg('Monitoring site registered successfully!');
-        setShowModal(false);
-        fetchSites();
-        // Reset form
-        setSiteName('');
-        setSiteCode('');
-        setDescription('');
-      } else {
-        const errData = await res.json();
-        alert(errData.detail || 'Failed to register site');
-      }
-    } catch (err) {
-      console.error(err);
+    if (res.ok) {
+      setSuccessMsg('Monitoring site registered successfully!');
+      setShowModal(false);
+      fetchSites();
+      setSiteName('');
+      setSiteCode('');
+      setDescription('');
+    } else {
+      alert(res.error || 'Failed to register site');
     }
   };
 
@@ -106,17 +89,11 @@ export default function MonitoringSites() {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure you want to deactivate this monitoring reserve site?")) return;
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/v1/monitoring-sites/${id}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        fetchSites();
-      }
-    } catch (err) {
-      console.error(err);
+    const res = await apiFetch(`/api/v1/monitoring-sites/${id}`, {
+      method: 'DELETE'
+    });
+    if (res.ok) {
+      fetchSites();
     }
   };
 

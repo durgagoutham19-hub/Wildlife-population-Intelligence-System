@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Shield, Sparkles, AlertCircle, Compass, UserPlus, Lock, Mail, User, Phone, Building, CheckCircle2 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../App';
+import { apiFetch } from '../utils/api';
 
 const ROLE_OPTIONS = [
   {
@@ -57,45 +58,39 @@ export default function Register() {
 
     setLoading(true);
 
-    try {
-      const response = await fetch('/api/v1/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-          role,
-          organization: organization || 'Wildlife Department',
-          phone: phone || null
-        })
-      });
+    const res = await apiFetch('/api/v1/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: name.trim(),
+        email: email.trim(),
+        password: password.trim(),
+        role,
+        organization: organization.trim() || 'Wildlife Department',
+        phone: phone.trim() || null
+      })
+    });
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.detail || 'Registration failed');
-      }
-
-      setSuccess(true);
-
-      // Auto login
-      const userObj = {
-        user_id: data.user_id,
-        email: data.email,
-        role: data.role,
-        full_name: data.name,
-      };
-      login(data.access_token, userObj);
-
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1200);
-
-    } catch (err) {
-      setError(err.message);
-    } finally {
+    if (!res.ok) {
+      setError(res.error || 'Registration failed');
       setLoading(false);
+      return;
     }
+
+    setSuccess(true);
+    const data = res.data;
+
+    const userObj = {
+      user_id: data.user_id,
+      email: data.email,
+      role: data.role,
+      full_name: data.name,
+    };
+    login(data.access_token, userObj);
+
+    setTimeout(() => {
+      navigate('/dashboard');
+    }, 1000);
+    setLoading(false);
   };
 
   return (

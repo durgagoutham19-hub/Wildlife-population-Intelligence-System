@@ -3,13 +3,20 @@ Wildlife Population Intelligence System - FastAPI Backend
 Main application entry point
 """
 
+import os
+# Prevent OpenBLAS and multi-threading memory exhaustion on Windows
+os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["NUMEXPR_NUM_THREADS"] = "1"
+os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 import logging
-import os
 from datetime import datetime
 
 # Import database

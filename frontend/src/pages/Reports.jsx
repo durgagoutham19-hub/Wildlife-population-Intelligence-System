@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FileDown, FilePlus, Loader, CheckCircle, AlertTriangle } from 'lucide-react';
+import { apiFetch } from '../utils/api';
 
 const REPORT_TYPES = [
   { value: 'population_report', label: 'Population Intelligence Report', desc: 'Comprehensive population estimates, trends, and growth analysis.' },
@@ -18,49 +19,39 @@ export default function Reports() {
   const [reports, setReports] = useState([]);
   const [status, setStatus] = useState(null); // { type: 'success'|'error', message }
 
+  const loadData = async () => {
+    const [resSites, resReports] = await Promise.all([
+      apiFetch('/api/v1/monitoring-sites'),
+      apiFetch('/api/v1/reports')
+    ]);
+    if (resSites.ok && Array.isArray(resSites.data)) setSites(resSites.data);
+    if (resReports.ok && Array.isArray(resReports.data)) setReports(resReports.data);
+  };
+
   useEffect(() => {
-    async function loadData() {
-      const token = localStorage.getItem('token');
-      const headers = { 'Authorization': `Bearer ${token}` };
-      try {
-        const [resSites, resReports] = await Promise.all([
-          fetch('/api/v1/monitoring-sites', { headers }),
-          fetch('/api/v1/reports', { headers })
-        ]);
-        if (resSites.ok) setSites(await resSites.json());
-        if (resReports.ok) setReports(await resReports.json());
-      } catch (err) { console.error(err); }
-    }
     loadData();
   }, []);
 
   const generateReport = async () => {
     setLoading(true);
     setStatus(null);
-    try {
-      const token = localStorage.getItem('token');
-      const body = { report_type: reportType, format };
-      if (siteId) body.site_id = parseInt(siteId);
+    const body = { report_type: reportType, format };
+    if (siteId) body.site_id = parseInt(siteId);
 
-      const res = await fetch('/api/v1/reports/generate', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
-      });
+    const res = await apiFetch('/api/v1/reports/generate', {
+      method: 'POST',
+      body: JSON.stringify(body)
+    });
 
-      if (res.ok) {
-        const newReport = await res.json();
-        setStatus({ type: 'success', message: 'Report generated successfully!' });
-        setReports((prev) => [newReport, ...prev]);
-      } else {
-        const err = await res.json();
-        setStatus({ type: 'error', message: err.detail || 'Failed to generate report.' });
+    if (res.ok) {
+      setStatus({ type: 'success', message: 'Report generated successfully!' });
+      if (res.data) {
+        setReports((prev) => [res.data, ...prev]);
       }
-    } catch (err) {
-      setStatus({ type: 'error', message: String(err) });
-    } finally {
-      setLoading(false);
+    } else {
+      setStatus({ type: 'error', message: res.error || 'Failed to generate report.' });
     }
+    setLoading(false);
   };
 
   const selectedType = REPORT_TYPES.find((r) => r.value === reportType);
@@ -166,7 +157,7 @@ export default function Reports() {
                 <div className="space-y-0.5 flex-1">
                   <p className="text-sm font-semibold text-slate-800">{report.report_name}</p>
                   <div className="flex items-center gap-3 text-[11px] text-slate-400">
-                    <span>{new Date(report.generated_at).toLocaleString()}</span>
+                    <span>{report.generated_at ? new Date(report.generated_at).toLocaleString() : 'Recent'}</span>
                     <span>·</span>
                     <span className="capitalize">{report.format?.toUpperCase()}</span>
                     {report.file_size_bytes && <span>· {Math.round(report.file_size_bytes / 1024)} KB</span>}

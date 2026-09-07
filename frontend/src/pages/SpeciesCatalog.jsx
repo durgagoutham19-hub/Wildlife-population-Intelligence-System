@@ -1,5 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Sparkles, BookOpen, Compass, Search } from 'lucide-react';
+import { Shield, Sparkles, BookOpen, Compass, Search, PawPrint, Tag } from 'lucide-react';
+import { apiFetch } from '../utils/api';
+
+const STATUS_COLORS = {
+  Endangered: 'bg-rose-500/20 text-rose-300 border-rose-500/30',
+  'Critically Endangered': 'bg-red-500/20 text-red-300 border-red-500/30',
+  Vulnerable: 'bg-amber-500/20 text-amber-300 border-amber-500/30',
+  'Near Threatened': 'bg-blue-500/20 text-blue-300 border-blue-500/30',
+  'Least Concern': 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+};
 
 export default function SpeciesCatalog() {
   const [speciesList, setSpeciesList] = useState([]);
@@ -9,20 +18,12 @@ export default function SpeciesCatalog() {
 
   useEffect(() => {
     async function loadSpecies() {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await fetch('/api/v1/species', {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setSpeciesList(data);
-        }
-      } catch (err) {
-        console.error(err);
-      } finally {
-        setLoading(false);
+      setLoading(true);
+      const res = await apiFetch('/api/v1/species');
+      if (res.ok && Array.isArray(res.data)) {
+        setSpeciesList(res.data);
       }
+      setLoading(false);
     }
     loadSpecies();
   }, []);
@@ -30,35 +31,41 @@ export default function SpeciesCatalog() {
   const filteredSpecies = speciesList.filter(s => {
     const matchesSearch = s.common_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           s.scientific_name.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesGroup = selectedGroup ? s.species_group.toLowerCase() === selectedGroup.toLowerCase() : true;
+    const matchesGroup = selectedGroup ? s.species_group?.toLowerCase() === selectedGroup.toLowerCase() : true;
     return matchesSearch && matchesGroup;
   });
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center flex-col md:flex-row gap-4">
+      {/* Header & Search */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-slate-800">Wildlife Species Catalog</h2>
-          <p className="text-sm text-slate-500 mt-1">Explore taxonomic logs, diet categories, and IUCN conservation statuses.</p>
+          <h2 className="text-xl md:text-2xl font-black text-white flex items-center gap-2.5">
+            <BookOpen className="h-6 w-6 text-emerald-400" />
+            Taxonomic Species Catalog
+          </h2>
+          <p className="text-xs md:text-sm text-slate-400 mt-1">
+            IUCN conservation listings, ecological trophic roles & sighting registry.
+          </p>
         </div>
 
         <div className="flex gap-3 w-full md:w-auto">
-          <div className="relative flex-1 md:w-[220px]">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
+          <div className="relative flex-1 md:w-[240px]">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-500" />
             <input
               type="text"
-              placeholder="Search common or scientific..."
+              placeholder="Search species..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              className="w-full bg-slate-900 border border-slate-700/80 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-emerald-500"
             />
           </div>
           <select
             value={selectedGroup}
             onChange={(e) => setSelectedGroup(e.target.value)}
-            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none"
+            className="bg-slate-900 border border-slate-700/80 rounded-xl px-3.5 py-2 text-xs text-slate-300 focus:outline-none focus:border-emerald-500"
           >
-            <option value="">All Groups</option>
+            <option value="">All Clades</option>
             <option value="mammal">Mammals</option>
             <option value="bird">Birds</option>
             <option value="reptile">Reptiles</option>
@@ -68,54 +75,66 @@ export default function SpeciesCatalog() {
       </div>
 
       {loading ? (
-        <div className="py-12 text-center text-slate-500">Loading catalog...</div>
+        <div className="py-16 text-center text-slate-500 flex flex-col items-center gap-3">
+          <div className="h-6 w-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs">Loading taxonomic database...</span>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredSpecies.map((sp) => (
-            <div key={sp.id} className="bg-white rounded-2xl border border-slate-100 p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow">
-              <div className="space-y-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h3 className="text-base font-bold text-slate-800">{sp.common_name}</h3>
-                    <p className="text-xs text-slate-400 italic mt-0.5">{sp.scientific_name}</p>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredSpecies.map((sp) => {
+            const statusClass = STATUS_COLORS[sp.conservation_status] || 'bg-slate-800 text-slate-300 border-slate-700';
+            return (
+              <div
+                key={sp.id}
+                className="bg-slate-900/80 border border-slate-800 hover:border-emerald-500/40 rounded-3xl p-6 shadow-xl backdrop-blur-sm flex flex-col justify-between transition-all group"
+              >
+                <div className="space-y-4">
+                  <div className="flex justify-between items-start gap-2">
+                    <div>
+                      <h3 className="text-base font-bold text-white group-hover:text-emerald-300 transition-colors">
+                        {sp.common_name}
+                      </h3>
+                      <p className="text-xs text-slate-400 italic mt-0.5">{sp.scientific_name}</p>
+                    </div>
+                    <span className={`text-[10px] uppercase font-black px-2.5 py-1 rounded-lg border shrink-0 ${statusClass}`}>
+                      {sp.conservation_status || 'Observed'}
+                    </span>
                   </div>
-                  <span className={`text-[10px] uppercase font-extrabold px-2.5 py-1 rounded-full ${
-                    sp.is_endangered ? 'bg-rose-50 text-rose-700 border border-rose-100' : 'bg-slate-50 text-slate-600 border border-slate-100'
-                  }`}>
-                    {sp.conservation_status}
+
+                  <p className="text-xs text-slate-300 leading-relaxed line-clamp-3">
+                    {sp.description || "Active apex species tracked in regional conservation zones."}
+                  </p>
+
+                  <div className="grid grid-cols-2 gap-3 border-t border-slate-800/80 pt-4 text-xs">
+                    <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
+                      <span className="text-[10px] text-slate-500 block font-bold uppercase tracking-wider">Taxon Group</span>
+                      <span className="font-semibold text-slate-200 capitalize">{sp.species_group}</span>
+                    </div>
+                    <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
+                      <span className="text-[10px] text-slate-500 block font-bold uppercase tracking-wider">Diet Niche</span>
+                      <span className="font-semibold text-slate-200 capitalize">{sp.diet_type}</span>
+                    </div>
+                    <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
+                      <span className="text-[10px] text-slate-500 block font-bold uppercase tracking-wider">Primary Habitat</span>
+                      <span className="font-semibold text-slate-200 truncate block">{sp.habitat_type}</span>
+                    </div>
+                    <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80">
+                      <span className="text-[10px] text-slate-500 block font-bold uppercase tracking-wider">IUCN Red List</span>
+                      <span className="font-semibold text-emerald-400">{sp.iucn_status || "LC"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-5 pt-3.5 border-t border-slate-800 flex items-center justify-between text-xs text-slate-400">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <PawPrint className="h-3.5 w-3.5 text-emerald-400" />
+                    Recorded Sightings: {sp.total_observations || 0}
                   </span>
-                </div>
-
-                <p className="text-xs text-slate-500 leading-relaxed line-clamp-3">{sp.description || "No species catalog notes registered."}</p>
-
-                <div className="grid grid-cols-2 gap-3 border-t border-slate-50 pt-4 text-xs text-slate-600">
-                  <div>
-                    <span className="text-[10px] text-slate-400 block font-bold uppercase">Taxonomic Group</span>
-                    <span className="font-semibold">{sp.species_group}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 block font-bold uppercase">Diet Type</span>
-                    <span className="font-semibold">{sp.diet_type}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 block font-bold uppercase">Preferred Habitat</span>
-                    <span className="font-semibold truncate block">{sp.habitat_type}</span>
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-slate-400 block font-bold uppercase">IUCN Red List Code</span>
-                    <span className="font-semibold">{sp.iucn_status || "LC"}</span>
-                  </div>
+                  <span className="text-[11px] text-slate-500">ID: #{sp.id}</span>
                 </div>
               </div>
-
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-slate-500">
-                <span className="flex items-center gap-1">
-                  <BookOpen className="h-4 w-4 text-slate-400" />
-                  Observations: {sp.total_observations || 0}
-                </span>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

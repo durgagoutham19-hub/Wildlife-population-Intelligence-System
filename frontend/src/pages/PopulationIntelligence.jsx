@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BarChart3, TrendingUp, HelpCircle, FileText, Settings, Play, RefreshCw, Calculator, Layers, AlertCircle, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { Line, Bar, Doughnut } from 'react-chartjs-2';
 
+import { apiFetch } from '../utils/api';
+
 const ESTIMATION_METHODS = [
   { value: 'scr', label: 'Spatial Capture-Recapture (SCR)', desc: 'Identifies individual markings & spatial movement grids.' },
   { value: 'distance', label: 'Distance Sampling Line Transects', desc: 'Models detection probability as perpendicular distance.' },
@@ -31,16 +33,9 @@ export default function PopulationIntelligence() {
 
   useEffect(() => {
     async function loadSites() {
-      try {
-        const token = localStorage.getItem('token');
-        const headers = { 'Authorization': `Bearer ${token}` };
-        const res = await fetch('/api/v1/monitoring-sites', { headers });
-        if (res.ok) {
-          const data = await res.json();
-          setSites(data);
-        }
-      } catch (err) {
-        console.error(err);
+      const res = await apiFetch('/api/v1/monitoring-sites');
+      if (res.ok && Array.isArray(res.data)) {
+        setSites(res.data);
       }
     }
     loadSites();
@@ -48,21 +43,12 @@ export default function PopulationIntelligence() {
 
   const loadPopulationData = async () => {
     setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const url = siteId ? `/api/v1/population/overview?site_id=${siteId}` : '/api/v1/population/overview';
-      const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setPopData(data);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+    const url = siteId ? `/api/v1/population/overview?site_id=${siteId}` : '/api/v1/population/overview';
+    const res = await apiFetch(url);
+    if (res.ok && res.data) {
+      setPopData(res.data);
     }
+    setLoading(false);
   };
 
   useEffect(() => {

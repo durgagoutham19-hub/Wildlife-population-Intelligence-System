@@ -3,6 +3,8 @@ import {
   Users, Search, ToggleLeft, ToggleRight, UserCog, CheckCircle, X, AlertTriangle, UserPlus, Mail, Lock, User, Building, Phone
 } from 'lucide-react';
 
+import { apiFetch } from '../utils/api';
+
 const ROLE_LABELS = {
   wildlife_researcher: 'Researcher',
   conservation_officer: 'Conservation Officer',
@@ -37,14 +39,9 @@ export default function AdminUsers() {
 
   const loadUsers = async () => {
     setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/v1/users', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (res.ok) setUsers(await res.json());
-    } catch (err) { console.error(err); }
-    finally { setLoading(false); }
+    const res = await apiFetch('/api/v1/users');
+    if (res.ok && Array.isArray(res.data)) setUsers(res.data);
+    setLoading(false);
   };
 
   useEffect(() => { loadUsers(); }, []);
@@ -52,23 +49,21 @@ export default function AdminUsers() {
   const handleCreateUser = async (e) => {
     e.preventDefault();
     setCreating(true);
-    try {
-      const res = await fetch('/api/v1/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: newName,
-          email: newEmail,
-          password: newPassword,
-          role: newRole,
-          organization: newOrg || 'Wildlife Department',
-          phone: newPhone || null
-        })
-      });
+    const res = await apiFetch('/api/v1/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        name: newName.trim(),
+        email: newEmail.trim(),
+        password: newPassword.trim(),
+        role: newRole,
+        organization: newOrg.trim() || 'Wildlife Department',
+        phone: newPhone.trim() || null
+      })
+    });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || 'Failed to create user account');
-
+    if (!res.ok) {
+      setStatusMsg({ type: 'error', text: res.error || 'Failed to create user account' });
+    } else {
       setStatusMsg({ type: 'success', text: `User "${newName}" registered successfully!` });
       setShowAddModal(false);
       setNewName('');
@@ -77,42 +72,31 @@ export default function AdminUsers() {
       setNewOrg('');
       setNewPhone('');
       loadUsers();
-    } catch (err) {
-      setStatusMsg({ type: 'error', text: err.message });
-    } finally {
-      setCreating(false);
     }
+    setCreating(false);
   };
 
   const toggleActive = async (user) => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/v1/users/${user.id}`, {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ is_active: !user.is_active })
-      });
-      if (res.ok) {
-        setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, is_active: !u.is_active } : u));
-        setStatusMsg({ type: 'success', text: `User ${user.is_active ? 'deactivated' : 'activated'} successfully.` });
-      }
-    } catch (err) { console.error(err); }
+    const res = await apiFetch(`/api/v1/users/${user.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ is_active: !user.is_active })
+    });
+    if (res.ok) {
+      setUsers((prev) => prev.map((u) => u.id === user.id ? { ...u, is_active: !u.is_active } : u));
+      setStatusMsg({ type: 'success', text: `User ${user.is_active ? 'deactivated' : 'activated'} successfully.` });
+    }
   };
 
   const saveRole = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`/api/v1/users/${editingUser.id}`, {
-        method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: roleVal })
-      });
-      if (res.ok) {
-        setUsers((prev) => prev.map((u) => u.id === editingUser.id ? { ...u, role: roleVal } : u));
-        setStatusMsg({ type: 'success', text: `Role updated to ${ROLE_LABELS[roleVal] || roleVal}.` });
-        setEditingUser(null);
-      }
-    } catch (err) { console.error(err); }
+    const res = await apiFetch(`/api/v1/users/${editingUser.id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ role: roleVal })
+    });
+    if (res.ok) {
+      setUsers((prev) => prev.map((u) => u.id === editingUser.id ? { ...u, role: roleVal } : u));
+      setStatusMsg({ type: 'success', text: `Role updated to ${ROLE_LABELS[roleVal] || roleVal}.` });
+      setEditingUser(null);
+    }
   };
 
   const filtered = users.filter((u) => {

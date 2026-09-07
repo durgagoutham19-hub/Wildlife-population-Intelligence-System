@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, MapPin, Clock, Camera, Volume2, Search, Filter, Plus, X, CheckCircle2, AlertCircle, Sparkles, User, Tag } from 'lucide-react';
 
+import { apiFetch } from '../utils/api';
+
 const STATUS_BADGES = {
   verified: { bg: 'bg-emerald-100 text-emerald-800 border-emerald-200', label: 'Stage 4: Verified' },
   pending: { bg: 'bg-amber-100 text-amber-800 border-amber-200', label: 'Stage 2: Under Review' },
@@ -50,31 +52,22 @@ export default function Observations() {
 
   const loadData = async () => {
     setLoading(true);
-    try {
-      const token = localStorage.getItem('token');
-      const headers = { 'Authorization': `Bearer ${token}` };
-      const [resObs, resSites, resSpecies] = await Promise.all([
-        fetch('/api/v1/observations?limit=300', { headers }),
-        fetch('/api/v1/monitoring-sites', { headers }),
-        fetch('/api/v1/species', { headers })
-      ]);
+    const [resObs, resSites, resSpecies] = await Promise.all([
+      apiFetch('/api/v1/observations?limit=300'),
+      apiFetch('/api/v1/monitoring-sites'),
+      apiFetch('/api/v1/species')
+    ]);
 
-      if (resObs.ok) setObservations(await resObs.json());
-      if (resSites.ok) {
-        const sData = await resSites.json();
-        setSites(sData);
-        if (sData.length > 0) setNewSiteId(sData[0].id);
-      }
-      if (resSpecies.ok) {
-        const spData = await resSpecies.json();
-        setSpeciesCatalog(spData);
-        if (spData.length > 0) setNewSpeciesId(spData[0].id);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
+    if (resObs.ok && Array.isArray(resObs.data)) setObservations(resObs.data);
+    if (resSites.ok && Array.isArray(resSites.data)) {
+      setSites(resSites.data);
+      if (resSites.data.length > 0 && !newSiteId) setNewSiteId(resSites.data[0].id);
     }
+    if (resSpecies.ok && Array.isArray(resSpecies.data)) {
+      setSpeciesCatalog(resSpecies.data);
+      if (resSpecies.data.length > 0 && !newSpeciesId) setNewSpeciesId(resSpecies.data[0].id);
+    }
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -84,46 +77,35 @@ export default function Observations() {
   const handleAddObservation = async (e) => {
     e.preventDefault();
     setSaving(true);
-    try {
-      const token = localStorage.getItem('token');
-      const selectedSpecies = speciesCatalog.find(s => s.id === parseInt(newSpeciesId));
-      const selectedSite = sites.find(s => s.id === parseInt(newSiteId));
+    const selectedSpecies = speciesCatalog.find(s => s.id === parseInt(newSpeciesId));
+    const selectedSite = sites.find(s => s.id === parseInt(newSiteId));
 
-      const res = await fetch('/api/v1/observations', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          observation_id: `OBS-${Date.now().toString().slice(-6)}`,
-          survey_id: 1, // default survey
-          species_id: parseInt(newSpeciesId),
-          site_id: parseInt(newSiteId),
-          observation_type: newType,
-          count: parseInt(newCount) || 1,
-          latitude: parseFloat(newLat) || null,
-          longitude: parseFloat(newLon) || null,
-          confidence_score: 0.95,
-          behavior_observed: `${newBehavior} · Stage: ${newLifeStage} · Sex: ${newSex}`,
-          notes: `Life Stage: ${newLifeStage}, Sex: ${newSex}, Verification Stage: ${newStatus}`,
-          observation_date: new Date().toISOString()
-        })
-      });
+    const res = await apiFetch('/api/v1/observations', {
+      method: 'POST',
+      body: JSON.stringify({
+        observation_id: `OBS-${Date.now().toString().slice(-6)}`,
+        survey_id: 1,
+        species_id: parseInt(newSpeciesId),
+        site_id: parseInt(newSiteId),
+        observation_type: newType,
+        count: parseInt(newCount) || 1,
+        latitude: parseFloat(newLat) || null,
+        longitude: parseFloat(newLon) || null,
+        confidence_score: 0.95,
+        behavior_observed: `${newBehavior} · Stage: ${newLifeStage} · Sex: ${newSex}`,
+        notes: `Life Stage: ${newLifeStage}, Sex: ${newSex}, Verification Stage: ${newStatus}`,
+        observation_date: new Date().toISOString()
+      })
+    });
 
-      if (res.ok) {
-        setStatusMsg({ type: 'success', text: `Observation for ${selectedSpecies?.common_name || 'Species'} logged successfully!` });
-        setShowAddModal(false);
-        loadData();
-      } else {
-        const err = await res.json();
-        throw new Error(err.detail || 'Failed to save observation');
-      }
-    } catch (err) {
-      setStatusMsg({ type: 'error', text: err.message });
-    } finally {
-      setSaving(false);
+    if (res.ok) {
+      setStatusMsg({ type: 'success', text: `Observation for ${selectedSpecies?.common_name || 'Species'} logged successfully!` });
+      setShowAddModal(false);
+      loadData();
+    } else {
+      setStatusMsg({ type: 'error', text: res.error || 'Failed to save observation' });
     }
+    setSaving(false);
   };
 
   const filtered = observations.filter((obs) => {
