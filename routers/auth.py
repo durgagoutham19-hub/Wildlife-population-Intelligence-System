@@ -17,7 +17,8 @@ router = APIRouter()
 @router.post("/register", response_model=Token, status_code=status.HTTP_201_CREATED)
 def register(user_in: UserRegister, db: Session = Depends(get_db)):
     """Register a new user and return JWT access token"""
-    existing = db.query(User).filter(User.email == user_in.email).first()
+    email = user_in.email.strip().lower()
+    existing = db.query(User).filter(User.email.ilike(email)).first()
     if existing:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -27,7 +28,7 @@ def register(user_in: UserRegister, db: Session = Depends(get_db)):
     hashed_pw = SecurityService.hash_password(user_in.password)
     user = User(
         name=user_in.name,
-        email=user_in.email,
+        email=email,
         hashed_password=hashed_pw,
         role=user_in.role or UserRole.WILDLIFE_RESEARCHER,
         organization=user_in.organization,
@@ -60,7 +61,8 @@ def register(user_in: UserRegister, db: Session = Depends(get_db)):
 @router.post("/login", response_model=Token)
 def login(user_in: UserLogin, db: Session = Depends(get_db)):
     """Authenticate user with email and password"""
-    user = db.query(User).filter(User.email == user_in.email).first()
+    email = user_in.email.strip().lower()
+    user = db.query(User).filter(User.email.ilike(email)).first()
     if not user or not SecurityService.verify_password(user_in.password, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

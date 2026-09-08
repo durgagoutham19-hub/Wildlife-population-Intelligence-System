@@ -63,7 +63,7 @@ export default function Register() {
       body: JSON.stringify({
         name: name.trim(),
         email: email.trim(),
-        password: password.trim(),
+        password,
         role,
         organization: organization.trim() || 'Wildlife Department',
         phone: phone.trim() || null
@@ -86,11 +86,7 @@ export default function Register() {
       full_name: data.name,
     };
     login(data.access_token, userObj);
-
-    setTimeout(() => {
-      navigate('/dashboard');
-    }, 1000);
-    setLoading(false);
+    navigate('/dashboard', { replace: true });
   };
 
   return (
