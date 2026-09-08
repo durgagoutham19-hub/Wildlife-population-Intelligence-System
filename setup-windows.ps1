@@ -125,7 +125,7 @@ Write-Success "✓ Dependencies installed"
 # Create .env if not exists
 if (-not (Test-Path ".env.local")) {
     Write-Info "Creating .env.local file..."
-    "@`nVITE_API_URL=http://localhost:8000`n@" | Set-Content -Path .env.local
+    "@`nVITE_API_URL=http://localhost:8001`n@" | Set-Content -Path .env.local
     Write-Success "✓ .env.local file created"
 }
 
@@ -149,11 +149,11 @@ Write-Info "   npm run dev"
 Write-Info ""
 Write-Info "3. Access:"
 Write-Info "   Frontend: http://localhost:5173"
-Write-Info "   Backend API: http://localhost:8000"
-Write-Info "   API Docs: http://localhost:8000/docs"
+Write-Info "   Backend API: http://localhost:8001"
+Write-Info "   API Docs: http://localhost:8001/docs"
 Write-Info ""
 Write-Info "4. Login with:"
-Write-Info "   Email: admin@wildlife.local"
-Write-Info "   Password: Admin123!"
+Write-Info "   Email: admin@wildlife.org"
+Write-Info "   Password: password123"
 Write-Info ""
 Write-Success "Happy coding! 🦁"

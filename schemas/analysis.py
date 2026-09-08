@@ -2,7 +2,7 @@
 AI Image and Audio Analysis Schemas
 """
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import Optional, List, Dict, Any
 from datetime import datetime
 
@@ -23,6 +23,8 @@ class DetectedAnimal(BaseModel):
 
 
 class ImageAnalysisResult(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     filename: str
     file_path: str
     detected_species: Optional[str] = None
@@ -39,6 +41,8 @@ class ImageAnalysisResult(BaseModel):
 
 
 class AudioAnalysisResult(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     filename: str
     file_path: str
     detected_species: Optional[str] = None

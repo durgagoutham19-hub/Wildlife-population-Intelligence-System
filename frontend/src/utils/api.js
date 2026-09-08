@@ -5,7 +5,9 @@
 
 const API_BASE_URL =
   import.meta.env.VITE_API_URL ||
-  'https://wildlife-population-intelligence-system-xv61.onrender.com';
+  (import.meta.env.DEV
+    ? ''
+    : 'https://wildlife-population-intelligence-system-xv61.onrender.com');
 
 export async function apiFetch(url, options = {}) {
   const token = localStorage.getItem('token');
@@ -60,6 +62,12 @@ export async function apiFetch(url, options = {}) {
     }
 
     if (!res.ok) {
+      if (res.status === 401 && !url.includes('/auth/login')) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.dispatchEvent(new Event('auth-expired'));
+      }
+
       const errorMsg =
         data &&
         typeof data === 'object' &&

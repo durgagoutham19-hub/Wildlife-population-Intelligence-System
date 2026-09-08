@@ -29,15 +29,10 @@ def seed_database():
     
     db = SessionLocal()
     try:
-        # Check if database is already seeded
-        if db.query(User).first() is not None:
-            logger.info("Database is already seeded. Skipping.")
-            return
-
         logger.info("Seeding database...")
 
-        # 1. Create Users
-        users = [
+        # Ensure demo accounts exist even when a personal account was registered first.
+        demo_users = [
             User(
                 name="Dr. Sarah Anjali",
                 email="researcher@wildlife.org",
@@ -79,11 +74,23 @@ def seed_database():
                 is_verified=True
             )
         ]
-        db.add_all(users)
+        users = []
+        for demo_user in demo_users:
+            user = db.query(User).filter(User.email == demo_user.email).first()
+            if user is None:
+                db.add(demo_user)
+                users.append(demo_user)
+            else:
+                users.append(user)
         db.commit()
-        for u in users:
-            db.refresh(u)
+        for user in users:
+            db.refresh(user)
         researcher, officer, ranger, admin_usr = users
+
+        # Existing databases already have the remaining sample records.
+        if db.query(Species).first() is not None:
+            logger.info("Demo accounts verified; existing sample data preserved.")
+            return
 
         # 2. Create Species Catalog
         species = [

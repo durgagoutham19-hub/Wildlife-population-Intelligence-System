@@ -19,7 +19,7 @@ export default function Login() {
 
     const res = await apiFetch('/api/v1/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email: email.trim(), password: password.trim() })
+      body: JSON.stringify({ email: email.trim(), password })
     });
 
     if (!res.ok) {

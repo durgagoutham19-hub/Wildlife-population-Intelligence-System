@@ -147,8 +147,8 @@ async def startup_event():
     logger.info("=" * 50)
     logger.info("Wildlife Population Intelligence System Starting")
     logger.info("=" * 50)
-    logger.info("API Documentation: http://localhost:8001/docs")
-    logger.info("ReDoc: http://localhost:8001/redoc")
+    logger.info("API Documentation: http://localhost:8000/docs")
+    logger.info("ReDoc: http://localhost:8000/redoc")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -173,7 +173,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=8001,
+        port=8000,
         reload=True,
         log_level="info"
     )
