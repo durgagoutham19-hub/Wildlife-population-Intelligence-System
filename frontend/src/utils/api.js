@@ -3,28 +3,17 @@
  * Handles authentication, JSON/FormData requests, and API errors.
  */
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_URL ||
-  (import.meta.env.DEV
-    ? ''
-    : 'https://wildlife-population-intelligence-system-xv61.onrender.com');
+const API_BASE_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://127.0.0.1:8000' : '');
 
 export async function apiFetch(url, options = {}) {
   const token = localStorage.getItem('token');
-
-  const headers = {
-    ...options.headers,
-  };
+  const headers = { ...options.headers };
 
   if (token && !headers['Authorization']) {
     headers['Authorization'] = `Bearer ${token}`;
   }
 
-  if (
-    !(options.body instanceof FormData) &&
-    !headers['Content-Type'] &&
-    options.body
-  ) {
+  if (!(options.body instanceof FormData) && !headers['Content-Type'] && options.body) {
     headers['Content-Type'] = 'application/json';
   }
 
@@ -33,24 +22,16 @@ export async function apiFetch(url, options = {}) {
     headers,
   };
 
-  // Add deployed backend URL
-  const fullUrl = url.startsWith('http')
-    ? url
-    : `${API_BASE_URL}${url}`;
+  const fullUrl = url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
 
   try {
     const res = await fetch(fullUrl, config);
 
     if (res.status === 204) {
-      return {
-        ok: true,
-        status: 204,
-        data: null,
-      };
+      return { ok: true, status: 204, data: null };
     }
 
     const text = await res.text();
-
     let data = null;
 
     if (text && text.trim().length > 0) {
@@ -62,16 +43,8 @@ export async function apiFetch(url, options = {}) {
     }
 
     if (!res.ok) {
-      if (res.status === 401 && !url.includes('/auth/login')) {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        window.dispatchEvent(new Event('auth-expired'));
-      }
-
       const errorMsg =
-        data &&
-        typeof data === 'object' &&
-        data.detail
+        data && typeof data === 'object' && data.detail
           ? typeof data.detail === 'string'
             ? data.detail
             : JSON.stringify(data.detail)
@@ -97,7 +70,7 @@ export async function apiFetch(url, options = {}) {
       ok: false,
       status: 0,
       data: null,
-      error: networkErr.message || 'Network connection failed',
+      error: networkErr.message || 'Cannot connect to backend server. Make sure the backend is running on http://127.0.0.1:8000',
     };
   }
 }
