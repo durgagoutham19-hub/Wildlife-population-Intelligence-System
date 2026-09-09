@@ -13,6 +13,7 @@ os.environ["VECLIB_MAXIMUM_THREADS"] = "1"
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from fastapi.security import HTTPBearer
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -157,16 +158,36 @@ async def shutdown_event():
     logger.info("Wildlife Population Intelligence System Shutting Down")
     logger.info("=" * 50)
 
-# Root endpoint
-@app.get("/")
-async def root():
-    """Root endpoint"""
-    return {
-        "message": "Wildlife Population Intelligence System API",
-        "version": "1.0.0",
-        "docs": "/docs",
-        "health": "/health"
-    }
+# Serve built frontend in production if dist directory exists
+frontend_dist = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+if os.path.exists(frontend_dist):
+    assets_dir = os.path.join(frontend_dist, "assets")
+    if os.path.exists(assets_dir):
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        # Don't intercept API, Docs, Uploads or Health routes
+        if full_path.startswith(("api/", "docs", "redoc", "openapi.json", "uploads/", "health", "ready")):
+            raise HTTPException(status_code=404, detail="Not Found")
+        file_path = os.path.join(frontend_dist, full_path)
+        if os.path.isfile(file_path):
+            return FileResponse(file_path)
+        index_file = os.path.join(frontend_dist, "index.html")
+        if os.path.exists(index_file):
+            return FileResponse(index_file)
+        return {"message": "Frontend build not found"}
+else:
+    # Root endpoint for API only mode
+    @app.get("/")
+    async def root():
+        """Root endpoint"""
+        return {
+            "message": "Wildlife Population Intelligence System API",
+            "version": "1.0.0",
+            "docs": "/docs",
+            "health": "/health"
+        }
 
 if __name__ == "__main__":
     import uvicorn
